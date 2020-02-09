@@ -75,6 +75,8 @@ if __name__ == '__main__':
                 checkm8.exploit()
             elif 'CPID:8015' in serial_number:
                 checkm8.exploit()
+            elif 'CPID:7002' in serial_number:
+                checkm8.exploit()
             else:
                 print 'Found:', serial_number
                 print 'ERROR: This device is not supported.'

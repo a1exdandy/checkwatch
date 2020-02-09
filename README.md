@@ -4,6 +4,9 @@
 
 **Read [disclaimer](#disclaimer) before using this software.*
 
+## checkwatch
+
+* checkm8 for **s7002** by [a1exdandy](https://twitter.com/a1exdandy) & [ChiptuneXT](https://twitter.com/chiptunext)
 
 ## checkm8
 

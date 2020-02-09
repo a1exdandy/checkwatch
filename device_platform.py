@@ -44,6 +44,12 @@ class DevicePlatform:
       self.dfu_load_base       = 0x800000000
       self.recovery_image_base = 0x18001C000
       self.recovery_load_base  = 0x800000000
+    if self.cpid in [0x7002]:
+      self.dfu_image_base      = 0x46018000
+      self.dfu_load_base       = 0x80000000 # ???
+      self.recovery_image_base = 0x46018000
+      self.recovery_load_base  = 0x80000000 # ???
+
 
   def name(self):
     if 0x8720 <= self.cpid <= 0x8960:
@@ -116,5 +122,12 @@ all_platforms = [
     dram_base=0x800000000,
     nonce_length=32, sep_nonce_length=20,
     demotion_reg=0x2352BC000,
+  ),
+  DevicePlatform(cpid=0x7002, cprv=0x01, scep=0x01, arch='armv7', srtg='iBoot-2098.0.0.2.4',
+    rom_base=0x40000000, rom_size=0x40000, rom_sha1='920feaa75482796f1fa74434c381b0dd1be28eeb',
+    sram_base=0x46000000, sram_size=0x48000,
+    dram_base=0x80000000,
+    nonce_length=20, sep_nonce_length=None, # ???
+    demotion_reg=0x3D100008, # ???
   ),
 ]
